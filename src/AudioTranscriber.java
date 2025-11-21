@@ -1,4 +1,5 @@
 import java.io.ByteArrayOutputStream;
+import java.util.ArrayList;
 import java.util.HashMap;
 
 import javax.sound.sampled.AudioFormat;
@@ -23,6 +24,13 @@ public class AudioTranscriber {
     boolean stopped = false;
     DoubleFFT_1D FFT = new DoubleFFT_1D(22050);
     boolean loudEnough = false;
+    int sampleCounterMeasure = 0;
+    int sampleCounterNote = 0;
+    ArrayList<ArrayList> measureList = new ArrayList<>();
+    String previousNote;
+    ArrayList<String> currentMeasure = new ArrayList<>();
+    String noteAndOctave;
+
 
     HashMap<Integer, String> notesMap = new HashMap<Integer, String>();
 
@@ -111,6 +119,8 @@ public class AudioTranscriber {
             gui.loudEnoughColor(loudEnough);
 
             // Only run pitch detection if a sample has amplitude (volume) of certain size
+            // TODO: turn all of the pitch detection into methods, and only run method if it is loud enough
+            // if it is not loud enough, run measure creator with noteandocatve as rest
             if (!loudEnough){
                 continue;
             }
@@ -168,13 +178,44 @@ public class AudioTranscriber {
                 octave -= octaveDifference;
             }
 
-            System.out.println(octave);
 
-            String noteAndOctave = "<html>" + noteName + "<sub>" + (int)(octave) + "</sub></html>";
+            noteAndOctave = "<html>" + noteName + "<sub>" + (int)(octave) + "</sub></html>";
+
+            System.out.println(noteAndOctave);
+
 
             gui.updateFrequency(frequency, noteAndOctave, cents);
+            
+
+            if (sampleCounterMeasure == 0){
+                previousNote = noteAndOctave;
+                sampleCounterNote++;
+                sampleCounterMeasure++;
+            } else if (sampleCounterMeasure == 16){
+                currentMeasure.add(previousNote);
+                currentMeasure.add(Integer.toString(sampleCounterNote));
+                measureList.add(currentMeasure);
+                System.out.println(currentMeasure);
+                currentMeasure = new ArrayList<>();
+                previousNote = noteAndOctave;
+                sampleCounterMeasure = 1;
+                sampleCounterNote = 1;
+            } else {
+                if (previousNote.equals(noteAndOctave)){
+                    sampleCounterNote++;  
+                } else {
+                    currentMeasure.add(previousNote);
+                    currentMeasure.add(Integer.toString(sampleCounterNote));
+                    previousNote = noteAndOctave;
+                    sampleCounterNote = 1;
+                }
+                sampleCounterMeasure++;
+            } 
+
             // out.write(data, 0, numBytesRead); 
             // System.out.println(out);
+
+            // A1 A2 A3 B4 C5 C6 D7 E8 E9 E10 E11 F12 E13 G14 G15 H16 G17
         }
     }
 
