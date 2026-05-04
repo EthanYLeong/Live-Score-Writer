@@ -1,18 +1,7 @@
-## Getting Started
+## Observations
 
-Welcome to the VS Code Java world. Here is a guideline to help you get started to write Java code in Visual Studio Code.
+I've noticed that using the read method is not super consistent and aligned with real world time. The read method is supposed to take a quarter of a second worth of sample data from the buffer, and if there is less than a quarter of a second worth of data, then it will wait until that amount of data is available to read. By printing the amount of bytes in the buffer before and after the read method, it's observed that there is generally at most around half the buffer size worth of bytes before the read method is ran, meaning that the buffer is nowhere near close to overflowing, which technically means that we should be able to consistently wait a full 0.25 seconds between every read method. However, playing a metronome click after every read method which should click at 60 bpm and comparing it with an actual metronome showcases that the metronome click from the java project is not an even 60 bpm. It's also observed that the amount of bytes in the buffer before and after the read method happens stays the same for a lot of the cycles which doesn't make sense, as the read method should transfer all of the bytes that are read into a new array, clearing out most of the buffer.
 
-## Folder Structure
+Another observation is that with the use of the System.nanoTime() method, a pretty precise metronome can be made, but only if there are no other calculations happening. When a line is started and audio calculations are happening, the metronome gets considerably off, which makes sense, as more time is spent on each cycle on calculations and mess up how the timing of how often the function that runs the metronome is ran. This is made extremely clear when I have a system print method that prints the nano time in a while true loop with and without the read method. When I run the print statement by itself with no calculations, the are an unbelievable amount of prints. When I add in the read method, the amount of prints produced are far lower which obviously makes a lot of sense.
 
-The workspace contains two folders by default, where:
-
-- `src`: the folder to maintain sources
-- `lib`: the folder to maintain dependencies
-
-Meanwhile, the compiled output files will be generated in the `bin` folder by default.
-
-> If you want to customize the folder structure, open `.vscode/settings.json` and update the related settings there.
-
-## Dependency Management
-
-The `JAVA PROJECTS` view allows you to manage your dependencies. More details can be found [here](https://github.com/microsoft/vscode-java-dependency#manage-dependencies).
+So just running the read method by itself with no other calculations, and tracking the amount of time between each read method, it should be 0.25 seconds between each read but it reports 0.25-0.25.1 consistently, with it reading jumps where it reads 0.252, 0.127, 0.376, 0.251. So using this for a metronome at least can get wonky. I plan to make a metronome in a separate class using nanotime/milliseconds with System methods, so it's not stuck on the inconsistent read method timing.

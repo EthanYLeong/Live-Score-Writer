@@ -3,22 +3,35 @@ import java.io.File;
 import javax.sound.sampled.AudioInputStream;
 import javax.sound.sampled.AudioSystem;
 import javax.sound.sampled.Clip;
+import javax.swing.JOptionPane;
+import javax.swing.LayoutStyle;
 
 public class Metronome {
 
-    public static void main(String[] args){
-        String filepath = "metronome-85688.wav";
-        playMusic(filepath);
+    static final File normalClick = new File("metronome-hit-low.wav");
+    static final File downbeat = new File("metronome-hit-bright.wav");
+    double lastRecordedTime;
+    
 
+    Metronome(){
+        lastRecordedTime = System.currentTimeMillis();
+        main();
+    }
+    public void main(){
+        while (true){
+            double currentTime = System.currentTimeMillis();
+            if (currentTime >= lastRecordedTime + 250){
+                playNormalClick();
+                lastRecordedTime = currentTime;
+            }
+        }
     }
 
-    public static void playMusic(String location){
+    public static void playNormalClick(){
         try 
         {
-            File musicPath = new File(location);
-
-            if (musicPath.exists()){
-                AudioInputStream audioInput = AudioSystem.getAudioInputStream(musicPath);
+            if (normalClick.exists()){
+                AudioInputStream audioInput = AudioSystem.getAudioInputStream(normalClick);
                 Clip clip = AudioSystem.getClip();
                 clip.open(audioInput);
                 clip.start();
@@ -31,4 +44,21 @@ public class Metronome {
         }
     }
 
+
+    public static void playDownbeat(){
+        try 
+        {
+            if (downbeat.exists()){
+                AudioInputStream audioInput = AudioSystem.getAudioInputStream(downbeat);
+                Clip clip = AudioSystem.getClip();
+                clip.open(audioInput);
+                clip.start();
+            } else{
+                System.out.println("cant find ur dumb ahh file");
+            }
+        }
+        catch(Exception e){
+            System.out.println(e);
+        }
+    }
 }
