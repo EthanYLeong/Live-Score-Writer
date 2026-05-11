@@ -10,19 +10,25 @@ public class Metronome {
 
     static final File normalClick = new File("metronome-hit-low.wav");
     static final File downbeat = new File("metronome-hit-bright.wav");
-    double lastRecordedTime;
-    
+    double lastRecordedClick;
+    double counter = 0;
+    Thread t = new Thread(() -> playMetronome());
 
     Metronome(){
-        lastRecordedTime = System.currentTimeMillis();
-        main();
+        lastRecordedClick = System.currentTimeMillis();
+        t.start();
     }
-    public void main(){
+    public void playMetronome(){
         while (true){
             double currentTime = System.currentTimeMillis();
-            if (currentTime >= lastRecordedTime + 250){
-                playNormalClick();
-                lastRecordedTime = currentTime;
+            if (currentTime >= lastRecordedClick + 250){
+                if (counter % 4 == 0){
+                    playDownbeat();
+                } else {
+                    playNormalClick();
+                }
+                counter++;
+                lastRecordedClick = currentTime;
             }
         }
     }

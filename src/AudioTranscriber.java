@@ -18,12 +18,12 @@ public class AudioTranscriber {
     Gui gui;
 
     TargetDataLine line;
-    AudioFormat format = new AudioFormat(88200, 16, 1, true, false);
+    AudioFormat format = new AudioFormat(88400, 16, 1, true, false);
     DataLine.Info info = new DataLine.Info(TargetDataLine.class, format);
     ByteArrayOutputStream out = new ByteArrayOutputStream();
     int numBytesRead;
     boolean stopped = false;
-    DoubleFFT_1D FFT = new DoubleFFT_1D(22050);
+    DoubleFFT_1D FFT = new DoubleFFT_1D(11050);
     boolean loudEnough = false;
     int sampleCounterMeasure = 0;
     int sampleCounterNote = 0;
@@ -82,7 +82,7 @@ public class AudioTranscriber {
     void start(){
         // buffer size is half a second worth of samples
         // so data is a quarter of a second of sample
-        byte[] data = new byte[line.getBufferSize()/2];
+        byte[] data = new byte[line.getBufferSize()/4];
         line.start();
         while (!stopped){
 
@@ -112,8 +112,7 @@ public class AudioTranscriber {
                 }
             }
 
-
-            if (largestAmplitude > 500){
+            if (largestAmplitude > 1000){
                 loudEnough = true;
             } else {
                 loudEnough = false;
@@ -122,7 +121,7 @@ public class AudioTranscriber {
             // Update color based on loud
             gui.loudEnoughColor(loudEnough);
 
-            
+
                 if (loudEnough){
             // Feed array of amplitudes into fourier transform
             // Transforms sampleArray into array of real/complex numbers
@@ -132,42 +131,33 @@ public class AudioTranscriber {
                     noteAndOctave = "REST";
                 }
 
+                System.out.println(noteAndOctave);
+            if (sampleCounterMeasure == 0){
+                previousNote = noteAndOctave;
+                sampleCounterNote++;
+                sampleCounterMeasure++;
+            } else if (sampleCounterMeasure == 16){
+                currentMeasure.add(previousNote);
+                currentMeasure.add(Integer.toString(sampleCounterNote));
+                measureList.add(currentMeasure);
+                System.out.println(currentMeasure);
+                roundNoteLengthOfMeasure(currentMeasure);
+                currentMeasure = new ArrayList<>();
+                previousNote = noteAndOctave;
+                sampleCounterMeasure = 1;
+                sampleCounterNote = 1;
+            } else {
+                if (previousNote.equals(noteAndOctave)){
+                    sampleCounterNote++;  
+                } else {
+                    currentMeasure.add(previousNote);
+                    currentMeasure.add(Integer.toString(sampleCounterNote));
+                    previousNote = noteAndOctave;
+                    sampleCounterNote = 1;
+                }
+                sampleCounterMeasure++;
+            } 
 
-
-
-
-
-
-            
-
-            // if (sampleCounterMeasure == 0){
-            //     previousNote = noteAndOctave;
-            //     sampleCounterNote++;
-            //     sampleCounterMeasure++;
-            // } else if (sampleCounterMeasure == 16){
-            //     currentMeasure.add(previousNote);
-            //     currentMeasure.add(Integer.toString(sampleCounterNote));
-            //     measureList.add(currentMeasure);
-            //     System.out.println(currentMeasure);
-            //     roundNoteLengthOfMeasure(currentMeasure);
-            //     currentMeasure = new ArrayList<>();
-            //     previousNote = noteAndOctave;
-            //     sampleCounterMeasure = 1;
-            //     sampleCounterNote = 1;
-            // } else {
-            //     if (previousNote.equals(noteAndOctave)){
-            //         sampleCounterNote++;  
-            //     } else {
-            //         currentMeasure.add(previousNote);
-            //         currentMeasure.add(Integer.toString(sampleCounterNote));
-            //         previousNote = noteAndOctave;
-            //         sampleCounterNote = 1;
-            //     }
-            //     sampleCounterMeasure++;
-            // } 
-
-            // out.write(data, 0, numBytesRead); 
-            // System.out.println(out);
 
             // A1 A2 A3 B4 C5 C6 D7 E8 E9 E10 E11 F12 E13 G14 G15 H16 G17
         }
