@@ -1,3 +1,5 @@
+package org.example;
+
 import java.io.ByteArrayOutputStream;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -9,6 +11,7 @@ import javax.sound.sampled.DataLine.Info;
 
 import org.jtransforms.fft.DoubleFFT_1D;
 
+
 import javax.sound.sampled.LineUnavailableException;
 import javax.sound.sampled.SourceDataLine;
 import javax.sound.sampled.TargetDataLine;
@@ -16,7 +19,6 @@ import javax.sound.sampled.TargetDataLine;
 public class AudioTranscriber {
 
     Gui gui;
-
     TargetDataLine line;
     AudioFormat format = new AudioFormat(88400, 16, 1, true, false);
     DataLine.Info info = new DataLine.Info(TargetDataLine.class, format);
@@ -111,7 +113,7 @@ public class AudioTranscriber {
                     largestAmplitude = Math.abs(sampleArray[i]);
                 }
             }
-
+            System.out.println(largestAmplitude);
             if (largestAmplitude > 1000){
                 loudEnough = true;
             } else {
