@@ -13,3 +13,9 @@ So an issue I was experiencing was that the largestAmplitude that returned was a
 YIN Frequency works with violin, it's able to give more frequencies per time than Fourier Transform, AND the frequencies reported are far more accurate and consistent than FFT. The only thing I've noticed is that playing a 3rd finger C on the G string sometimes causes the reported frequency to flicker between a C4 and C5 in frequency.
 
 The next step involves turning the sound into actual data that represent measures, and lining up the metronome click with the actual timing of the audio capture.
+
+5/26/26 5:24 PM
+I was being a bit silly and was trying to find the most common note every 0.25 seconds, so with 48 window frames where a note is detected, I need to find the most prominent across a period of 12 window frames, but I looked at sizes of 16 frames instead of 12, which caused the print of each common note to print slower than the metronome.
+
+8:12 PM
+I've noticed that whenever I start the app, the metronome would make numerous clicks in a quick instant and then eventually stabilize to the programmed pattern and timing of 60 bps. By using print statements, I realized that the entirety of the playNormalClick/playDownbeat methods will finish running, but no click noise would be played until moments later. I believe this is because it takes more time to open the files and run all the audio related methods on the method's first run, but exceptions from certain methods make it so I can't just move a few lines into the constructor or as a field.

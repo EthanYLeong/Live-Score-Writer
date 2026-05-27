@@ -36,8 +36,9 @@ public class AudioTranscriberYIN {
     ArrayList<String> tempList = new ArrayList<String>();
     HashMap<String, Integer> tempMap = new HashMap<>();
     Yin yin = new Yin(49152, 1024);
-
+    int windowFrameCounter = 0;
     HashMap<Integer, String> notesMap = new HashMap<Integer, String>();
+    int loopCounter = 0;
 
     AudioTranscriberYIN(Gui gui) {
 
@@ -80,21 +81,22 @@ public class AudioTranscriberYIN {
             stopped = true;
         }
 
-        start();
     }
 
     void start(){
-        // buffer size is half a second worth of samples
-        // so data is a quarter of a second of sample
+        //
         byte[] data = new byte[2048];
         line.start();
         while (!stopped){
 
         //     // Copy bytes from the line's buffer to data byte array
+        if (loopCounter % 48 == 0){
+        System.out.println("CLICK");
+        }
+        loopCounter++;
+
         line.read(data, 0, data.length);
 
-
-            // length of sample array is 22,050
             float[] sampleArray = new float[1024];
 
             
@@ -130,17 +132,43 @@ public class AudioTranscriberYIN {
             // Transforms sampleArray into array of real/complex numbers
                     float frequency = yin.getPitch(sampleArray).getPitch();
                     calculateClosestNote(frequency);
-                    System.out.println("frequency " + frequency + " note and octave: " + noteAndOctave);
+                    // System.out.println("frequency " + frequency + " note and octave: " + noteAndOctave);
                     gui.updateFrequency(frequency, noteAndOctave, 0);
                 } else {
                     noteAndOctave = "REST";
                 } 
 
+
+
                 if (!tempMap.containsKey(noteAndOctave)){
                     tempMap.put(noteAndOctave, 0);
                 }
-                
+                tempMap.put(noteAndOctave, tempMap.get(noteAndOctave) + 1);
+                windowFrameCounter++;
 
+                if (windowFrameCounter == 12){
+                int  highestNoteCount = 0;
+                String mostCommonNote = "";
+                for (String note : tempMap.keySet()){
+                    if (tempMap.get(note) >= highestNoteCount){
+                        highestNoteCount = tempMap.get(note);
+                        mostCommonNote = note;
+                    }
+                }
+                windowFrameCounter = 0;
+                tempMap.clear();
+                measureCreator(mostCommonNote);
+                }
+
+
+
+
+
+            // A1 A2 A3 B4 C5 C6 D7 E8 E9 E10 E11 F12 E13 G14 G15 H16 G17
+        }
+    }
+
+    public void measureCreator(String noteAndOctave){
             if (sampleCounterMeasure == 0){
                 previousNote = noteAndOctave;
                 sampleCounterNote++;
@@ -149,8 +177,8 @@ public class AudioTranscriberYIN {
                 currentMeasure.add(previousNote);
                 currentMeasure.add(Integer.toString(sampleCounterNote));
                 measureList.add(currentMeasure);
-                // System.out.println(currentMeasure);
-                roundNoteLengthOfMeasure(currentMeasure);
+                System.out.println(currentMeasure);
+                // roundNoteLengthOfMeasure(currentMeasure);
                 currentMeasure = new ArrayList<>();
                 previousNote = noteAndOctave;
                 sampleCounterMeasure = 1;
@@ -166,10 +194,6 @@ public class AudioTranscriberYIN {
                 }
                 sampleCounterMeasure++;
             } 
-
-
-            // A1 A2 A3 B4 C5 C6 D7 E8 E9 E10 E11 F12 E13 G14 G15 H16 G17
-        }
     }
 
     public void printMixers(){
@@ -184,6 +208,13 @@ public class AudioTranscriberYIN {
         }
 
     }
+
+    // maybe return a note class instead of string?
+    // supposed to represent the most prominent note out of the quarter of a second
+
+    // public String getProminentNote(){
+
+    // }
 
     public void calculateClosestNote (float frequency){
         // -1 is passed in when the algorithm could not detect a pitch from the audio sample
@@ -217,7 +248,9 @@ public class AudioTranscriberYIN {
                 octave += octaveDifference;
             }
 
-            noteAndOctave = "<html>" + noteName + "<sub>" + (int)(octave) + "</sub></html>";
+            // noteAndOctave = "<html>" + noteName + "<sub>" + (int)(octave) + "</sub></html>";
+            noteAndOctave = noteName + (int)(octave);
+
       }
 
     }

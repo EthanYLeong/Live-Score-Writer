@@ -5,8 +5,8 @@ import java.io.File;
 import javax.sound.sampled.AudioInputStream;
 import javax.sound.sampled.AudioSystem;
 import javax.sound.sampled.Clip;
-import javax.swing.JOptionPane;
-import javax.swing.LayoutStyle;
+
+
 
 public class Metronome {
 
@@ -14,16 +14,20 @@ public class Metronome {
     static final File downbeat = new File("metronome-hit-bright.wav");
     double lastRecordedClick;
     double counter = 0;
-    Thread t = new Thread(() -> playMetronome());
+    Thread t = new Thread(() -> {System.out.println("start metronome");playMetronome();
+        });
 
     Metronome(){
-        lastRecordedClick = System.currentTimeMillis();
-        t.start();
+
+        System.out.println("CONSTRUCTOR");
+        // offset in order to match the sound of the actual click to the
+        // beginning of the read method in audiotranscriber
+        lastRecordedClick = System.currentTimeMillis() - 50;
     }
     public void playMetronome(){
         while (true){
             double currentTime = System.currentTimeMillis();
-            if (currentTime >= lastRecordedClick + 250){
+            if (currentTime >= lastRecordedClick + 1000){
                 if (counter % 4 == 0){
                     playDownbeat();
                 } else {
