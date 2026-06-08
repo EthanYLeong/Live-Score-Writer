@@ -11,11 +11,35 @@ import javax.sound.sampled.DataLine;
 import javax.sound.sampled.Line;
 
 
-import be.tarsos.dsp.pitch.Yin;
 
 import javax.sound.sampled.LineUnavailableException;
 import javax.sound.sampled.Mixer;
 import javax.sound.sampled.TargetDataLine;
+
+import org.audiveris.proxymusic.Attributes;
+import org.audiveris.proxymusic.Clef;
+import org.audiveris.proxymusic.ClefSign;
+import org.audiveris.proxymusic.Identification;
+import org.audiveris.proxymusic.Key;
+import org.audiveris.proxymusic.Note;
+import org.audiveris.proxymusic.NoteType;
+import org.audiveris.proxymusic.ObjectFactory;
+import org.audiveris.proxymusic.PartList;
+import org.audiveris.proxymusic.PartName;
+import org.audiveris.proxymusic.Pitch;
+import org.audiveris.proxymusic.ScorePart;
+import org.audiveris.proxymusic.ScorePartwise;
+import org.audiveris.proxymusic.Step;
+import org.audiveris.proxymusic.Time;
+import org.audiveris.proxymusic.TypedText;
+
+import be.tarsos.dsp.pitch.Yin;
+
+import org.audiveris.proxymusic.ScorePartwise.Part;
+
+import java.math.BigDecimal;
+import java.math.BigInteger;
+import java.text.AttributedCharacterIterator.Attribute;
 
 public class AudioTranscriberYIN {
     Gui gui;
@@ -39,6 +63,10 @@ public class AudioTranscriberYIN {
     int windowFrameCounter = 0;
     HashMap<Integer, String> notesMap = new HashMap<Integer, String>();
     int loopCounter = 0;
+
+    ObjectFactory factory = new ObjectFactory();
+    ScorePartwise.Part part = factory.createScorePartwisePart();
+
 
     AudioTranscriberYIN(Gui gui) {
 
@@ -174,15 +202,19 @@ public class AudioTranscriberYIN {
                 sampleCounterNote++;
                 sampleCounterMeasure++;
             } else if (sampleCounterMeasure == 16){
+                // CHANGE FILE METHOD
                 currentMeasure.add(previousNote);
                 currentMeasure.add(Integer.toString(sampleCounterNote));
                 measureList.add(currentMeasure);
                 System.out.println(currentMeasure);
+
+                updateMusicFile(currentMeasure);
                 // roundNoteLengthOfMeasure(currentMeasure);
                 currentMeasure = new ArrayList<>();
                 previousNote = noteAndOctave;
                 sampleCounterMeasure = 1;
                 sampleCounterNote = 1;
+
             } else {
                 if (previousNote.equals(noteAndOctave)){
                     sampleCounterNote++;  
@@ -191,30 +223,38 @@ public class AudioTranscriberYIN {
                     currentMeasure.add(Integer.toString(sampleCounterNote));
                     previousNote = noteAndOctave;
                     sampleCounterNote = 1;
+
+                    updateMusicFile(currentMeasure);
                 }
                 sampleCounterMeasure++;
             } 
     }
 
-    public void printMixers(){
-        Mixer.Info[] mixerInfos = AudioSystem.getMixerInfo();
-        for (Mixer.Info info : mixerInfos) {
-            Mixer mixer = AudioSystem.getMixer(info);
-            for (Line thisLine : mixer.getTargetLines()){
-                if (thisLine == line){
-                    System.out.println(info.getName());
-                }
-            }
-        }
-
-    }
-
     // maybe return a note class instead of string?
     // supposed to represent the most prominent note out of the quarter of a second
 
-    // public String getProminentNote(){
 
-    // }
+
+    public void updateMusicFile(ArrayList<String> currentMeasure){
+        String noteData = currentMeasure.remove(0);
+        String divisionCount = currentMeasure.remove(0);
+        Note note = factory.createNote();
+
+        if (!noteData.equals("REST")){
+        Pitch pitch = factory.createPitch();
+        note.setPitch(pitch);
+        Step step = Step.valueOf(noteData.substring(0, 1));
+        pitch.setStep(step);
+        pitch.setOctave(Integer.valueOf(noteData.substring(1, 2)));
+        note.setDuration(new BigDecimal(Integer.valueOf(divisionCount)));
+        System.out.println(note);
+        } else {
+            note.setRest(factory.createRest());
+            note.setDuration(new BigDecimal(Integer.valueOf(divisionCount)));
+            System.out.println(note);
+        }
+
+    }
 
     public void calculateClosestNote (float frequency){
         // -1 is passed in when the algorithm could not detect a pitch from the audio sample
@@ -273,6 +313,43 @@ public class AudioTranscriberYIN {
             }
         }
         // System.out.println(roundedMeasureLength);
+    }
+
+    void musicFileSetup(){
+        ScorePartwise scorePartwise = factory.createScorePartwise();
+        PartList partList = factory.createPartList();
+        scorePartwise.setPartList(partList);
+        ScorePart scorePart = factory.createScorePart();
+        partList.getPartGroupOrScorePart().add(scorePart);
+        PartName partName = factory.createPartName();
+        partName.setValue("the only part");
+        scorePart.setPartName(partName);
+        scorePart.setId("P1");
+
+        scorePartwise.getPart().add(part);
+        part.setId(scorePart);
+
+        ScorePartwise.Part.Measure measure = factory.createScorePartwisePartMeasure();
+        part.getMeasure().add(measure);
+
+        Attributes attributes = factory.createAttributes();
+        measure.getNoteOrBackupOrForward().add(attributes);
+        attributes.setDivisions(new BigDecimal(4));
+
+        Key key = factory.createKey();
+        attributes.getKey().add(key);
+        // ????
+        key.setFifths(new BigInteger("0"));
+
+        Time time = factory.createTime();
+        attributes.getTime().add(time);
+        time.getTimeSignature().add(factory.createTimeBeats("4"));
+        time.getTimeSignature().add(factory.createTimeBeatType("4"));
+
+        Clef clef = factory.createClef();
+        attributes.getClef().add(clef);
+        clef.setSign(ClefSign.G);
+        clef.setLine(new BigInteger("2"));
     }
 
 }

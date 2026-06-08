@@ -19,3 +19,23 @@ I was being a bit silly and was trying to find the most common note every 0.25 s
 
 8:12 PM
 I've noticed that whenever I start the app, the metronome would make numerous clicks in a quick instant and then eventually stabilize to the programmed pattern and timing of 60 bps. By using print statements, I realized that the entirety of the playNormalClick/playDownbeat methods will finish running, but no click noise would be played until moments later. I believe this is because it takes more time to open the files and run all the audio related methods on the method's first run, but exceptions from certain methods make it so I can't just move a few lines into the constructor or as a field.
+
+6/8 11:24 AM
+So creating the JavaFX object doesn't allow anything to run, and it says that JavaFX runtime components are missing, so I just have to run the static main method to boot up the JavaFX window. Also I'm changing the gradle configuration cache setting to false so I can run the gradlew clean run prompt because I don't think the build is accounting for when I changed the location of the viewer.html file.
+
+Questions:
+5/30 2:01 PM
+For the musicXML file java objects, why are so many of the things lists? Like why is it attributes.getTime().add(time);, why is there a list of time and all these other attributes if we only need one?
+
+ Why are these all set instead of get like the other lists?             
+            note.setPitch(pitch);
+            pitch.setStep(Step.E);
+            pitch.setOctave(4);
+
+Understand enumerations fully and this
+     public final class Level extends java.lang.Enum<Level> {
+    // These are standard, public static variables!
+    public static final Level LOW = new Level("LOW", 0);
+    public static final Level MEDIUM = new Level("MEDIUM", 1);
+    public static final Level HIGH = new Level("HIGH", 2);
+}
