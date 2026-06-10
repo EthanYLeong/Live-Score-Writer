@@ -1,6 +1,7 @@
 package org.example;
 
 import java.io.ByteArrayOutputStream;
+import java.io.StringWriter;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -34,6 +35,9 @@ import org.audiveris.proxymusic.Time;
 import org.audiveris.proxymusic.TypedText;
 
 import be.tarsos.dsp.pitch.Yin;
+import jakarta.xml.bind.JAXBContext;
+import jakarta.xml.bind.JAXBException;
+import jakarta.xml.bind.Marshaller;
 
 import org.audiveris.proxymusic.ScorePartwise.Part;
 
@@ -42,6 +46,7 @@ import java.math.BigInteger;
 import java.text.AttributedCharacterIterator.Attribute;
 
 public class AudioTranscriberYIN {
+    private Thread thread = new Thread(() -> musicTranscribe());
     Gui gui;
     TargetDataLine line;
     AudioFormat format = new AudioFormat(49152, 16, 1, true, false);
@@ -53,12 +58,13 @@ public class AudioTranscriberYIN {
     int sampleCounterMeasure = 0;
     int sampleCounterNote = 0;
     ArrayList<ArrayList> measureList = new ArrayList<>();
-    String previousNote;
-    ArrayList<String> currentMeasure = new ArrayList<>();
+    Note previousNote;
+    ArrayList<Object> currentMeasure = new ArrayList<>();
     String noteAndOctave;
+    Note note;
     int counter = 0;
     ArrayList<String> tempList = new ArrayList<String>();
-    HashMap<String, Integer> tempMap = new HashMap<>();
+    HashMap<Note, Integer> tempMap = new HashMap<>();
     Yin yin = new Yin(49152, 1024);
     int windowFrameCounter = 0;
     HashMap<Integer, String> notesMap = new HashMap<Integer, String>();
@@ -66,9 +72,11 @@ public class AudioTranscriberYIN {
 
     ObjectFactory factory = new ObjectFactory();
     ScorePartwise.Part part = factory.createScorePartwisePart();
+    ScorePartwise scorePartwise = factory.createScorePartwise();
 
 
     AudioTranscriberYIN(Gui gui) {
+    musicFileSetup();
 
     notesMap.put(0, "C");
     notesMap.put(1, "C#");
@@ -111,7 +119,11 @@ public class AudioTranscriberYIN {
 
     }
 
-    void start(){
+    public void start(){
+        thread.start();
+    }
+
+    private void musicTranscribe(){
         //
         byte[] data = new byte[2048];
         line.start();
@@ -163,21 +175,23 @@ public class AudioTranscriberYIN {
                     // System.out.println("frequency " + frequency + " note and octave: " + noteAndOctave);
                     gui.updateFrequency(frequency, noteAndOctave, 0);
                 } else {
+                    note = factory.createNote();
+                    note.setRest(factory.createRest());
                     noteAndOctave = "REST";
                 } 
 
 
 
-                if (!tempMap.containsKey(noteAndOctave)){
-                    tempMap.put(noteAndOctave, 0);
+                if (!tempMap.containsKey(note)){
+                    tempMap.put(note, 0);
                 }
-                tempMap.put(noteAndOctave, tempMap.get(noteAndOctave) + 1);
-                windowFrameCounter++;
 
+                tempMap.put(note, tempMap.get(note) + 1);
+                windowFrameCounter++;
                 if (windowFrameCounter == 12){
                 int  highestNoteCount = 0;
-                String mostCommonNote = "";
-                for (String note : tempMap.keySet()){
+                Note mostCommonNote = factory.createNote();
+                for (Note note : tempMap.keySet()){
                     if (tempMap.get(note) >= highestNoteCount){
                         highestNoteCount = tempMap.get(note);
                         mostCommonNote = note;
@@ -196,13 +210,12 @@ public class AudioTranscriberYIN {
         }
     }
 
-    public void measureCreator(String noteAndOctave){
+    public void measureCreator(Note noteAndOctave){
             if (sampleCounterMeasure == 0){
                 previousNote = noteAndOctave;
                 sampleCounterNote++;
                 sampleCounterMeasure++;
             } else if (sampleCounterMeasure == 16){
-                // CHANGE FILE METHOD
                 currentMeasure.add(previousNote);
                 currentMeasure.add(Integer.toString(sampleCounterNote));
                 measureList.add(currentMeasure);
@@ -224,7 +237,7 @@ public class AudioTranscriberYIN {
                     previousNote = noteAndOctave;
                     sampleCounterNote = 1;
 
-                    updateMusicFile(currentMeasure);
+                    // updateMusicFile(currentMeasure);
                 }
                 sampleCounterMeasure++;
             } 
@@ -235,25 +248,27 @@ public class AudioTranscriberYIN {
 
 
 
-    public void updateMusicFile(ArrayList<String> currentMeasure){
-        String noteData = currentMeasure.remove(0);
-        String divisionCount = currentMeasure.remove(0);
-        Note note = factory.createNote();
-
-        if (!noteData.equals("REST")){
-        Pitch pitch = factory.createPitch();
-        note.setPitch(pitch);
-        Step step = Step.valueOf(noteData.substring(0, 1));
-        pitch.setStep(step);
-        pitch.setOctave(Integer.valueOf(noteData.substring(1, 2)));
-        note.setDuration(new BigDecimal(Integer.valueOf(divisionCount)));
-        System.out.println(note);
-        } else {
-            note.setRest(factory.createRest());
-            note.setDuration(new BigDecimal(Integer.valueOf(divisionCount)));
-            System.out.println(note);
+    public void updateMusicFile(ArrayList<Object> currentMeasure){
+        ScorePartwise.Part.Measure measure = factory.createScorePartwisePartMeasure();
+        for (int i = 0; i < currentMeasure.size() - 1; i += 2){
+        Note note = (Note) currentMeasure.get(i);
+        int divisionCount = Integer.valueOf((String) currentMeasure.get(i+1));
+        // note.getPitch().getStep().toString();
+        note.setDuration(new BigDecimal(divisionCount));
+        measure.getNoteOrBackupOrForward().add(note);
         }
+        part.getMeasure().add(measure);
 
+        try {
+            JAXBContext context = JAXBContext.newInstance(ScorePartwise.class);
+            Marshaller marshaller = context.createMarshaller();
+            marshaller.setProperty(Marshaller.JAXB_FORMATTED_OUTPUT, Boolean.TRUE);
+            StringWriter stringWriter = new StringWriter();
+            marshaller.marshal(scorePartwise, stringWriter);
+            JavaFX.getInstance().loadMusicXmlFile(stringWriter.toString());
+        } catch (JAXBException e){
+            System.out.println("Error: " + e);
+        }
     }
 
     public void calculateClosestNote (float frequency){
@@ -261,7 +276,6 @@ public class AudioTranscriberYIN {
         if (frequency == -1.0){
             noteAndOctave = "REST FROM NO PITCH";
         } else {
-            // num of cycles over time period / (length of each sample)
             double octaveDifference = Math.log(frequency/261.6256)/Math.log(2);
             double numOfSemitones = 12 * octaveDifference;
             double lower = Math.floor(numOfSemitones);
@@ -277,8 +291,9 @@ public class AudioTranscriberYIN {
             int semitoneDifference = (int) closest % 12;
 
             noteName = notesMap.get(semitoneDifference);
-            
-            double octave = 4;
+
+
+            int octave = 4;
 
             if (octaveDifference >= 0){
                 octaveDifference = Math.floor(octaveDifference);
@@ -288,6 +303,16 @@ public class AudioTranscriberYIN {
                 octave += octaveDifference;
             }
 
+            Note note = factory.createNote();
+            Pitch pitch = factory.createPitch();
+            note.setPitch(pitch);
+            pitch.setStep(Step.valueOf(noteName.substring(0, 1)));
+            if (noteName.length() == 2){
+                pitch.setAlter(new BigDecimal(1));
+            }
+            pitch.setOctave(octave);
+            note.setRest(null);
+            this.note = note;
             // noteAndOctave = "<html>" + noteName + "<sub>" + (int)(octave) + "</sub></html>";
             noteAndOctave = noteName + (int)(octave);
 
@@ -316,7 +341,6 @@ public class AudioTranscriberYIN {
     }
 
     void musicFileSetup(){
-        ScorePartwise scorePartwise = factory.createScorePartwise();
         PartList partList = factory.createPartList();
         scorePartwise.setPartList(partList);
         ScorePart scorePart = factory.createScorePart();

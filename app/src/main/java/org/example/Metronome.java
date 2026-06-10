@@ -14,7 +14,9 @@ public class Metronome {
     static final File downbeat = new File("metronome-hit-bright.wav");
     double lastRecordedClick;
     double counter = 0;
-    Thread t = new Thread(() -> {System.out.println("start metronome");playMetronome();
+    private Thread thread = new Thread(() -> {
+        System.out.println("start metronome");
+        playMetronome();
         });
 
     Metronome(){
@@ -24,6 +26,11 @@ public class Metronome {
         // beginning of the read method in audiotranscriber
         lastRecordedClick = System.currentTimeMillis() - 50;
     }
+
+    public void start(){
+        thread.start();
+    }
+
     public void playMetronome(){
         while (true){
             double currentTime = System.currentTimeMillis();
@@ -35,6 +42,11 @@ public class Metronome {
                 }
                 counter++;
                 lastRecordedClick = currentTime;
+            }
+            try {
+                Thread.sleep(1);
+            } catch (InterruptedException e) {
+                e.printStackTrace();
             }
         }
     }

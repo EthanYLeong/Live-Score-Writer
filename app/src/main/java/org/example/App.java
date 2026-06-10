@@ -5,8 +5,8 @@ public class App {
         Metronome metronome = new Metronome();
         Gui gui = new Gui();
         AudioTranscriberYIN audioTranscriber = new AudioTranscriberYIN(gui);
-        JavaFX.main(args);
-        metronome.t.start();
+        metronome.start();
         audioTranscriber.start();
+        JavaFX.main(args);
     }
 }
