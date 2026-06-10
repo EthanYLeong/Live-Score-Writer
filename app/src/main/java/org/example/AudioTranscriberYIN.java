@@ -172,15 +172,13 @@ public class AudioTranscriberYIN {
             // Transforms sampleArray into array of real/complex numbers
                     float frequency = yin.getPitch(sampleArray).getPitch();
                     calculateClosestNote(frequency);
-                    // System.out.println("frequency " + frequency + " note and octave: " + noteAndOctave);
                     gui.updateFrequency(frequency, noteAndOctave, 0);
+                    System.out.println(noteAndOctave);
                 } else {
                     note = factory.createNote();
                     note.setRest(factory.createRest());
                     noteAndOctave = "REST";
                 } 
-
-
 
                 if (!tempMap.containsKey(note)){
                     tempMap.put(note, 0);
@@ -188,6 +186,7 @@ public class AudioTranscriberYIN {
 
                 tempMap.put(note, tempMap.get(note) + 1);
                 windowFrameCounter++;
+
                 if (windowFrameCounter == 12){
                 int  highestNoteCount = 0;
                 Note mostCommonNote = factory.createNote();
@@ -201,18 +200,14 @@ public class AudioTranscriberYIN {
                 tempMap.clear();
                 measureCreator(mostCommonNote);
                 }
-
-
-
-
-
+                
             // A1 A2 A3 B4 C5 C6 D7 E8 E9 E10 E11 F12 E13 G14 G15 H16 G17
         }
     }
 
-    public void measureCreator(Note noteAndOctave){
+    public void measureCreator(Note note){
             if (sampleCounterMeasure == 0){
-                previousNote = noteAndOctave;
+                previousNote = note;
                 sampleCounterNote++;
                 sampleCounterMeasure++;
             } else if (sampleCounterMeasure == 16){
@@ -224,29 +219,31 @@ public class AudioTranscriberYIN {
                 updateMusicFile(currentMeasure);
                 // roundNoteLengthOfMeasure(currentMeasure);
                 currentMeasure = new ArrayList<>();
-                previousNote = noteAndOctave;
+                previousNote = note;
                 sampleCounterMeasure = 1;
                 sampleCounterNote = 1;
 
             } else {
-                if (previousNote.equals(noteAndOctave)){
-                    sampleCounterNote++;  
+                if (previousNote.getRest() == null && note.getRest() == null){
+                    if (previousNote.getPitch().getOctave() == note.getPitch().getOctave() && previousNote.getPitch().getStep() == note.getPitch().getStep()){
+                      sampleCounterNote++;  
+                    } else {
+                        currentMeasure.add(previousNote);
+                        currentMeasure.add(Integer.toString(sampleCounterNote));
+                        previousNote = note;
+                        sampleCounterNote = 1;
+                    }
+                } else if (previousNote.getRest() != null && note.getRest() != null) {
+                      sampleCounterNote++;  
                 } else {
                     currentMeasure.add(previousNote);
                     currentMeasure.add(Integer.toString(sampleCounterNote));
-                    previousNote = noteAndOctave;
+                    previousNote = note;
                     sampleCounterNote = 1;
-
-                    // updateMusicFile(currentMeasure);
                 }
                 sampleCounterMeasure++;
             } 
     }
-
-    // maybe return a note class instead of string?
-    // supposed to represent the most prominent note out of the quarter of a second
-
-
 
     public void updateMusicFile(ArrayList<Object> currentMeasure){
         ScorePartwise.Part.Measure measure = factory.createScorePartwisePartMeasure();
@@ -274,7 +271,9 @@ public class AudioTranscriberYIN {
     public void calculateClosestNote (float frequency){
         // -1 is passed in when the algorithm could not detect a pitch from the audio sample
         if (frequency == -1.0){
-            noteAndOctave = "REST FROM NO PITCH";
+            noteAndOctave = "REST";
+            note = factory.createNote();
+            note.setRest(factory.createRest());
         } else {
             double octaveDifference = Math.log(frequency/261.6256)/Math.log(2);
             double numOfSemitones = 12 * octaveDifference;
