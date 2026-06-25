@@ -26,6 +26,9 @@ So creating the JavaFX object doesn't allow anything to run, and it says that Ja
 12:12 PM
 As far as I know, when I run the application through .\gradlew clean run, everything works fine, but if I hit the VS code run button, everything will run the same, but it will print that the viewer.html file was not found. The information I've found has said that the getResource method I run only checks the runtime classpath, and the classpath consists of the class files, resource files, and dependency files. Apparently, when I have gradle run the application, it copies over any resource files, but when VS code runs the application, it does not copy over the resource files, which means that the viewer.html file won't be found.
 
+6/22 6:07 PM
+There is a delay when starting the metronome, where having print messages right after the method to run the click noise is ran shows that the "click" messages are printed exactly as expected, but the first click is audibly late, making the first and second click sound extremely close together. Ultimately, this is solved by running any audio file beforehand, as I assume this uses the audioSystem stuff and goes through the startup time beforehand.
+
 Questions:
 5/30 2:01 PM
 For the musicXML file java objects, why are so many of the things lists? Like why is it attributes.getTime().add(time);, why is there a list of time and all these other attributes if we only need one?

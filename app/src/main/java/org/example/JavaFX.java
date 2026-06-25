@@ -4,13 +4,19 @@ import javafx.application.Application;
 import javafx.application.Platform;
 import javafx.scene.Scene;
 import javafx.scene.control.Button;
+import javafx.scene.control.ComboBox;
 import javafx.scene.control.Label;
-import javafx.scene.layout.Region;
+import javafx.scene.control.TextField;
+import javafx.scene.layout.HBox;
 import javafx.scene.layout.VBox;
 import javafx.scene.web.WebEngine;
 import javafx.scene.web.WebView;
 import javafx.stage.Stage;
 import javafx.concurrent.Worker;
+import org.audiveris.proxymusic.Attributes;
+import org.audiveris.proxymusic.Time;
+
+import be.tarsos.dsp.resample.SoundTouchRateTransposer;
 
 public class JavaFX extends Application {
 
@@ -18,6 +24,13 @@ public class JavaFX extends Application {
     private WebEngine webEngine;
     private Button startButton;
     private VBox mainLayout;
+    private TextField bpmField;
+    private ComboBox<Integer> divisionsBox;
+    private ComboBox<String> timeSignatureBox;
+    private Label bpmLabel;
+    private Label timeSignatureLabel;
+    private Label divisionsLabel;
+    private HBox secondRow;
     private static JavaFX instance;
     private Metronome metronome = new Metronome();
     private AudioTranscriberYIN audioTranscriber = new AudioTranscriberYIN();
@@ -30,11 +43,48 @@ public class JavaFX extends Application {
     public void start(Stage primaryStage) throws Exception {
         startButton = new Button("Start Recording");
         startButton.setOnAction(event -> handleStartTrigger());
+
+        bpmField = new TextField("60");
+        bpmField.textProperty().addListener((obs, oldValue, newValue) -> {
+            try {
+                double bpm = Double.parseDouble(newValue);
+                metronome.setBpm(bpm);
+                audioTranscriber.setBpm(bpm);
+            } catch (Exception e) {
+                System.out.println("MUST PASS IN VALID NUMBER");
+            }
+        });
+
+        timeSignatureBox = new ComboBox<>();
+        timeSignatureBox.getItems().addAll("2/4", "3/4", "4/4", "5/4", "3/8", "6/8", "9/8");
+        timeSignatureBox.setValue("4/4");
+        timeSignatureBox.setOnAction(event -> {
+            audioTranscriber.updateTimeSignature(timeSignatureBox.getValue());
+            updateDivisionsField();
+        });
+
+        divisionsBox = new ComboBox<>();
+        divisionsBox.getItems().addAll(1, 2, 4);
+        divisionsBox.setValue(4);
+        divisionsBox.setOnAction(event -> {
+            if (divisionsBox.getValue() != null)
+                audioTranscriber.updateDivisions(divisionsBox.getValue());
+        });
+
+        bpmLabel = new Label("BPM");
+        timeSignatureLabel = new Label("Time Signature");
+        divisionsLabel = new Label("Divisions");
+
         mainLayout = new VBox(10);
+        secondRow = new HBox(10);
         startButton.setPrefSize(200, 40);
+        bpmField.setMaxSize(200, 40);
+        secondRow.getChildren().addAll(bpmLabel, bpmField, timeSignatureLabel, timeSignatureBox, divisionsLabel,
+                divisionsBox);
+
         instance = this;
         WebView visualBrowser = createContent();
-        mainLayout.getChildren().addAll(startButton, visualBrowser);
+        mainLayout.getChildren().addAll(startButton, secondRow, visualBrowser);
         Scene scene = new Scene(mainLayout, 950, 700);
         primaryStage.setScene(scene);
         primaryStage.show();
@@ -78,6 +128,20 @@ public class JavaFX extends Application {
 
         metronome.start();
         audioTranscriber.start();
+    }
+
+    private void updateDivisionsField() {
+        System.out.println("START");
+        if (AudioTranscriberYIN.timeSignatureDenominator.equals("4")) {
+            divisionsBox.getItems().clear();
+            divisionsBox.getItems().addAll(1, 2, 4);
+            divisionsBox.setValue(1);
+        } else if (AudioTranscriberYIN.timeSignatureDenominator.equals("8")) {
+            divisionsBox.getItems().clear();
+            divisionsBox.getItems().addAll(1, 2);
+            divisionsBox.setValue(1);
+        }
+        System.out.println("END");
     }
 
 }

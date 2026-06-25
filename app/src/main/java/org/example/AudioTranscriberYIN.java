@@ -4,24 +4,18 @@ import java.io.ByteArrayOutputStream;
 import java.io.StringWriter;
 import java.util.ArrayList;
 import java.util.HashMap;
-import java.util.List;
 
 import javax.sound.sampled.AudioFormat;
 import javax.sound.sampled.AudioSystem;
 import javax.sound.sampled.DataLine;
-import javax.sound.sampled.Line;
-
 import javax.sound.sampled.LineUnavailableException;
-import javax.sound.sampled.Mixer;
 import javax.sound.sampled.TargetDataLine;
 
 import org.audiveris.proxymusic.Attributes;
 import org.audiveris.proxymusic.Clef;
 import org.audiveris.proxymusic.ClefSign;
-import org.audiveris.proxymusic.Identification;
 import org.audiveris.proxymusic.Key;
 import org.audiveris.proxymusic.Note;
-import org.audiveris.proxymusic.NoteType;
 import org.audiveris.proxymusic.ObjectFactory;
 import org.audiveris.proxymusic.PartList;
 import org.audiveris.proxymusic.PartName;
@@ -30,18 +24,14 @@ import org.audiveris.proxymusic.ScorePart;
 import org.audiveris.proxymusic.ScorePartwise;
 import org.audiveris.proxymusic.Step;
 import org.audiveris.proxymusic.Time;
-import org.audiveris.proxymusic.TypedText;
 
 import be.tarsos.dsp.pitch.Yin;
 import jakarta.xml.bind.JAXBContext;
-import jakarta.xml.bind.JAXBException;
+import jakarta.xml.bind.JAXBElement;
 import jakarta.xml.bind.Marshaller;
-
-import org.audiveris.proxymusic.ScorePartwise.Part;
 
 import java.math.BigDecimal;
 import java.math.BigInteger;
-import java.text.AttributedCharacterIterator.Attribute;
 
 public class AudioTranscriberYIN {
     private Thread thread = new Thread(() -> musicTranscribe());
@@ -73,6 +63,14 @@ public class AudioTranscriberYIN {
     boolean marshallerError = false;
     boolean isMeasureConfigured = false;
     boolean isFirstMeasure = false;
+    long currentTime;
+    long previousTime;
+    int divisions = 4;
+    // interval for each division
+    long interval = 250;
+    double bpm = 60;
+    public static String timeSignatureNumerator = "4";
+    public static String timeSignatureDenominator = "4";
 
     AudioTranscriberYIN() {
 
@@ -129,10 +127,11 @@ public class AudioTranscriberYIN {
     private void musicTranscribe() {
         byte[] data = new byte[2048];
         line.start();
+        previousTime = System.currentTimeMillis() - interval;
         while (!stopped) {
 
             if (loopCounter % 48 == 0) {
-                System.out.println("CLICK");
+                System.out.println("click");
             }
             loopCounter++;
 
@@ -148,7 +147,7 @@ public class AudioTranscriberYIN {
             if (isAboveThreshold) {
                 float frequency = yin.getPitch(sampleArray).getPitch();
                 note = calculateClosestNote(frequency);
-                System.out.println("NOTE: " + noteAndOctave + " FREQUENCY: " + frequency);
+                // System.out.println("NOTE: " + noteAndOctave + " FREQUENCY: " + frequency);
             } else {
                 note = factory.createNote();
                 note.setRest(factory.createRest());
@@ -265,8 +264,9 @@ public class AudioTranscriberYIN {
 
         tempMap.put(note, tempMap.get(note) + 1);
         windowFrameCounter++;
-
-        if (windowFrameCounter == 12) {
+        currentTime = System.currentTimeMillis();
+        if (currentTime >= previousTime + interval) {
+            previousTime += interval;
             int highestNoteCount = 0;
             Note mostCommonNote = factory.createNote();
             for (Note mapNote : tempMap.keySet()) {
@@ -309,7 +309,7 @@ public class AudioTranscriberYIN {
             previousNote = note;
             sampleCounterNote++;
             sampleCounterMeasure++;
-        } else if (sampleCounterMeasure == 16) {
+        } else if (sampleCounterMeasure == Integer.valueOf(timeSignatureNumerator) * divisions) {
             measureBuffer.add(previousNote);
             measureBuffer.add(Integer.toString(sampleCounterNote));
             ArrayList<Object> returnBuffer = (ArrayList<Object>) measureBuffer.clone();
@@ -374,7 +374,7 @@ public class AudioTranscriberYIN {
         part.getMeasure().add(measure);
         Attributes attributes = factory.createAttributes();
         measure.getNoteOrBackupOrForward().add(attributes);
-        attributes.setDivisions(new BigDecimal(4));
+        attributes.setDivisions(new BigDecimal(divisions));
 
         Key key = factory.createKey();
         attributes.getKey().add(key);
@@ -382,8 +382,8 @@ public class AudioTranscriberYIN {
 
         Time time = factory.createTime();
         attributes.getTime().add(time);
-        time.getTimeSignature().add(factory.createTimeBeats("4"));
-        time.getTimeSignature().add(factory.createTimeBeatType("4"));
+        time.getTimeSignature().add(factory.createTimeBeats(timeSignatureNumerator));
+        time.getTimeSignature().add(factory.createTimeBeatType(timeSignatureDenominator));
 
         Clef clef = factory.createClef();
         attributes.getClef().add(clef);
@@ -401,13 +401,48 @@ public class AudioTranscriberYIN {
         return null;
     }
 
-    private String convertJavaToXMLString(ScorePartwise scorePartwise) throws Exception {
+    public String convertJavaToXMLString(ScorePartwise scorePartwise) throws Exception {
         if (!marshallerError) {
             StringWriter stringWriter = new StringWriter();
             marshaller.marshal(scorePartwise, stringWriter);
             return stringWriter.toString();
         }
         throw new Exception("marshaller error true so no marshal or smth");
+    }
+
+    public void setBpm(double bpm) {
+        this.bpm = bpm;
+        interval = (long) (60000 / (bpm * divisions));
+        System.out.println(interval);
+    }
+
+    public void updateTimeSignature(String timeSignature) {
+        System.out.println("RAHHHHH");
+        Attributes attributes = (Attributes) part.getMeasure().get(0).getNoteOrBackupOrForward()
+                .get(0);
+        Time time = (Time) attributes.getTime().get(0);
+
+        timeSignatureNumerator = timeSignature.substring(0, 1);
+        timeSignatureDenominator = timeSignature.substring(2, 3);
+
+        time.getTimeSignature().clear();
+        time.getTimeSignature().add(factory.createTimeBeats(timeSignatureNumerator));
+        time.getTimeSignature().add(factory.createTimeBeatType(timeSignatureDenominator));
+
+        try {
+            JavaFX.getInstance().loadMusicXmlFile(convertJavaToXMLString(scorePartwise));
+        } catch (Exception e) {
+            System.out.println("ERROR: FAILED TO UPDATE SHEET MUSIC TIME SIGNATURE VISUALLY");
+            e.printStackTrace();
+        }
+    }
+
+    public void updateDivisions(int divisions) {
+        this.divisions = divisions;
+        interval = (long) (60000 / (bpm * divisions));
+        Attributes attributes = (Attributes) part.getMeasure().get(0).getNoteOrBackupOrForward()
+                .get(0);
+        attributes.setDivisions(new BigDecimal(divisions));
     }
 
 }
