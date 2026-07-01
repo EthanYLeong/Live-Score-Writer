@@ -19,9 +19,9 @@ public class Metronome {
     private AudioInputStream normalStream;
     private AudioInputStream downbeatStream;
     private AudioInputStream silenceStream;
-
+    boolean isMetronomeActive = false;
     double lastRecordedClick;
-    double counter = 0;
+    double counter = 1;
     double interval = 1000;
     private Thread thread = new Thread(() -> {
         playMetronome();
@@ -58,15 +58,21 @@ public class Metronome {
 
     public void start() {
         lastRecordedClick = System.currentTimeMillis() - interval;
+        System.out.println("Metronome starts at " + (lastRecordedClick + interval) % 1000000);
+        isMetronomeActive = true;
         thread.start();
     }
 
     public void playMetronome() {
-        while (true) {
-            long currentTime = System.currentTimeMillis();
+        while (isMetronomeActive) {
+            double currentTime = System.currentTimeMillis();
             if (currentTime >= lastRecordedClick + interval) {
-                if (counter % Integer.valueOf(AudioTranscriberYIN.timeSignatureNumerator) == 0) {
-                    playDownbeat();
+                System.out
+                        .println("METRONOME INTERVAL " + (((lastRecordedClick + interval) % 1000000000)) / 1000
+                                + " REAL TIME " +
+                                +((System.currentTimeMillis() % 1000000000) / 1000.0));
+                if (counter % Integer.valueOf(AudioTranscriberYIN.timeSignatureNumerator) == 1) {
+                    playDownbeat(); // ".056 difference in interval"
                 } else {
                     playNormalClick();
                 }
@@ -110,7 +116,11 @@ public class Metronome {
     public void setBpm(double bpm) {
         if (bpm <= 0)
             return;
-        interval = (long) 60000 / bpm;
+        interval = 60000 / bpm;
+    }
+
+    public void stop() {
+        isMetronomeActive = false;
     }
 
 }

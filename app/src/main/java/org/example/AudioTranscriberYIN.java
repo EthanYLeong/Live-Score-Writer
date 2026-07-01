@@ -35,13 +35,12 @@ import java.math.BigInteger;
 
 public class AudioTranscriberYIN {
     private Thread thread = new Thread(() -> musicTranscribe());
-    Gui gui;
     TargetDataLine line;
     AudioFormat format = new AudioFormat(49152, 16, 1, true, false);
     DataLine.Info info = new DataLine.Info(TargetDataLine.class, format);
     ByteArrayOutputStream out = new ByteArrayOutputStream();
     int numBytesRead;
-    boolean stopped = false;
+    boolean isTranscriberActive = false;
     int sampleCounterMeasure = 0;
     int sampleCounterNote = 0;
     Note previousNote;
@@ -54,7 +53,6 @@ public class AudioTranscriberYIN {
     Yin yin = new Yin(49152, 1024);
     int windowFrameCounter = 0;
     HashMap<Integer, String> notesMap = new HashMap<Integer, String>();
-    int loopCounter = 0;
     JAXBContext context;
     Marshaller marshaller;
     ObjectFactory factory = new ObjectFactory();
@@ -63,12 +61,16 @@ public class AudioTranscriberYIN {
     boolean marshallerError = false;
     boolean isMeasureConfigured = false;
     boolean isFirstMeasure = false;
-    long currentTime;
-    long previousTime;
+    double currentTime;
+    double previousTime;
+    double timeToPrint = 0;
     int divisions = 4;
+    double startTime = 0;
+    double lastTime = 0;
     // interval for each division
-    long interval = 250;
+    double interval = 250;
     double bpm = 60;
+    boolean start = false;
     public static String timeSignatureNumerator = "4";
     public static String timeSignatureDenominator = "4";
 
@@ -100,14 +102,15 @@ public class AudioTranscriberYIN {
 
         if (!AudioSystem.isLineSupported(info)) {
             System.out.println("LINE NOT SUPPORTED");
-            stopped = true;
+            isTranscriberActive = true;
         }
+        System.nanoTime();
         try {
             line = (TargetDataLine) AudioSystem.getLine(info);
-            line.open(format);
+            line.open(format, 8192);
         } catch (LineUnavailableException ex) {
             System.out.println("UNAVAILABLE MICROPHONE");
-            stopped = true;
+            isTranscriberActive = true;
         }
 
         try {
@@ -121,19 +124,26 @@ public class AudioTranscriberYIN {
     }
 
     public void start() {
+        isTranscriberActive = true;
         thread.start();
     }
 
     private void musicTranscribe() {
         byte[] data = new byte[2048];
         line.start();
-        previousTime = System.currentTimeMillis() - interval;
-        while (!stopped) {
+        previousTime = System.currentTimeMillis();
 
-            if (loopCounter % 48 == 0) {
-                System.out.println("click");
+        System.out.println("Transcriber starts at " + previousTime % 1000000);
+        while (isTranscriberActive) {
+
+            if (start) {
+                start = false;
+                System.out.println("INTERVAL " + (((timeToPrint % 1000000000)) / 1000) + " REAL TIME "
+                        + ((System.currentTimeMillis() % 1000000000) / 1000.0));
             }
-            loopCounter++;
+            // System.out.println("TIME DIFFERENCE BETWEEN READS: " +
+            // (System.nanoTime() - previousTime) / 1000000);
+            // System.out.println(line.available());
 
             line.read(data, 0, data.length);
 
@@ -147,6 +157,7 @@ public class AudioTranscriberYIN {
             if (isAboveThreshold) {
                 float frequency = yin.getPitch(sampleArray).getPitch();
                 note = calculateClosestNote(frequency);
+
                 // System.out.println("NOTE: " + noteAndOctave + " FREQUENCY: " + frequency);
             } else {
                 note = factory.createNote();
@@ -158,8 +169,31 @@ public class AudioTranscriberYIN {
             // for 16th note division assuming 60 bpm
             Note completedNote = findMostCommonNote(note);
             if (completedNote != null) {
+
+                start = true;
+                // System.out.println(
+                // previousTime % 1000000 +
+                // " -> " +
+                // (completedNote.getRest() == null
+                // ? completedNote.getPitch().getStep()
+                // : "REST")
+                // + " -> " + sampleCounterMeasure);
+                if (completedNote.getRest() == null)
+                    System.out.println(
+                            "note: " + completedNote.getPitch().getStep() + completedNote.getPitch().getOctave());
+                // System.out.println("PITCH: " + completedNote.getPitch().getStep() + "
+                // COUNTER: "+ (sampleCounterMeasure - 1));
                 ArrayList<Object> measureBuffer = processNoteForMeasure(completedNote);
                 if (measureBuffer != null) {
+                    // System.out.println("MEASURE");
+                    // for (int i = 0; i < measureBuffer.size(); i += 2) {
+                    // Note n = (Note) measureBuffer.get(i);
+                    // int duration = Integer.parseInt((String) measureBuffer.get(i + 1));
+
+                    // System.out.println(
+                    // (n.getRest() == null ? n.getPitch().getStep() : "REST")
+                    // + " x " + duration);
+                    // }
                     ScorePartwise.Part.Measure measure = convertToJavaXMLMeasure(measureBuffer);
                     if (!isFirstMeasure) {
                         part.getMeasure().add(measure);
@@ -193,7 +227,7 @@ public class AudioTranscriberYIN {
     }
 
     private float[] convertToSampleArray(byte[] data) {
-        float[] sampleArray = new float[1024];
+        float[] sampleArray = new float[data.length / 2];
         for (int i = 0, j = 0; i < data.length - 1; i += 2, j++) {
             int low = data[i] & 0xFF;
             int high = data[i + 1] & 0xFF;
@@ -248,7 +282,6 @@ public class AudioTranscriberYIN {
                 pitch.setAlter(new BigDecimal(1));
             }
             pitch.setOctave(octave);
-            note.setRest(null);
             // noteAndOctave = "<html>" + noteName + "<sub>" + (int)(octave) +
             // "</sub></html>";
             noteAndOctave = noteName + (int) (octave); // NEED TO REMOVE EVENTUALLY
@@ -266,13 +299,17 @@ public class AudioTranscriberYIN {
         windowFrameCounter++;
         currentTime = System.currentTimeMillis();
         if (currentTime >= previousTime + interval) {
+            start = true;
+            timeToPrint = previousTime + interval;
+            // System.out.println(
+            // "lateness = " + (currentTime - (previousTime + interval)));
             previousTime += interval;
             int highestNoteCount = 0;
             Note mostCommonNote = factory.createNote();
             for (Note mapNote : tempMap.keySet()) {
                 if (tempMap.get(mapNote) >= highestNoteCount) {
                     highestNoteCount = tempMap.get(mapNote);
-                    mostCommonNote = note;
+                    mostCommonNote = mapNote;
                 }
             }
             windowFrameCounter = 0;
@@ -309,7 +346,11 @@ public class AudioTranscriberYIN {
             previousNote = note;
             sampleCounterNote++;
             sampleCounterMeasure++;
-        } else if (sampleCounterMeasure == Integer.valueOf(timeSignatureNumerator) * divisions) {
+            // If it's in x/8, the amount of divisions need to be halved, so we multiply by
+            // (4/Integer.valueOf(timeSignatureDenominator))
+        } else if (sampleCounterMeasure == Integer.valueOf(timeSignatureNumerator) * divisions
+                * (4 / Float.valueOf(timeSignatureDenominator))) {
+            startTime = System.currentTimeMillis();
             measureBuffer.add(previousNote);
             measureBuffer.add(Integer.toString(sampleCounterNote));
             ArrayList<Object> returnBuffer = (ArrayList<Object>) measureBuffer.clone();
@@ -412,7 +453,7 @@ public class AudioTranscriberYIN {
 
     public void setBpm(double bpm) {
         this.bpm = bpm;
-        interval = (long) (60000 / (bpm * divisions));
+        interval = (60000.0 / (bpm * divisions * (4 / Float.valueOf(timeSignatureDenominator))));
         System.out.println(interval);
     }
 
@@ -439,10 +480,15 @@ public class AudioTranscriberYIN {
 
     public void updateDivisions(int divisions) {
         this.divisions = divisions;
-        interval = (long) (60000 / (bpm * divisions));
+        interval = (long) (60000 / (bpm * divisions * (4 / Float.valueOf(timeSignatureDenominator))));
         Attributes attributes = (Attributes) part.getMeasure().get(0).getNoteOrBackupOrForward()
                 .get(0);
         attributes.setDivisions(new BigDecimal(divisions));
+
+    }
+
+    public void stop() {
+        isTranscriberActive = false;
     }
 
 }

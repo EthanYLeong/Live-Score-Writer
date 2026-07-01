@@ -99,17 +99,16 @@ public class JavaFX extends Application {
             webEngine.load(templateUrl.toExternalForm());
         } else {
             System.out.println("Error: Could not find viewer.html in resources folder !!");
-            System.out.println(JavaFX.class.getProtectionDomain()
-                    .getCodeSource()
-                    .getLocation());
         }
+
         webEngine.getLoadWorker().stateProperty().addListener((observable, oldState, newState) -> {
             if (newState == Worker.State.SUCCEEDED) {
                 System.out.println("page open");
-                String mockMusicXml = audioTranscriber.getInitialXMLString();
-                loadMusicXmlFile(mockMusicXml);
+                String initialMusicXML = audioTranscriber.getInitialXMLString();
+                loadMusicXmlFile(initialMusicXML);
             }
         });
+
         return webView;
 
     }
@@ -123,11 +122,18 @@ public class JavaFX extends Application {
     }
 
     private void handleStartTrigger() {
-        startButton.setDisable(true);
-        startButton.setText("Recording Active");
-
-        metronome.start();
-        audioTranscriber.start();
+        System.out.println("AUDIO TRANSCRIBER INTERVAL :" + audioTranscriber.interval);
+        System.out.println("METRONOME INTERVAL: " + metronome.interval);
+        if (!audioTranscriber.line.isActive()) {
+            metronome.start();
+            audioTranscriber.start();
+            startButton.setText("Stop Recording");
+        } else {
+            metronome.stop();
+            audioTranscriber.stop();
+            startButton.setText("Start Recording");
+        }
+        audioTranscriber.lastTime = System.currentTimeMillis();
     }
 
     private void updateDivisionsField() {
@@ -138,8 +144,8 @@ public class JavaFX extends Application {
             divisionsBox.setValue(1);
         } else if (AudioTranscriberYIN.timeSignatureDenominator.equals("8")) {
             divisionsBox.getItems().clear();
-            divisionsBox.getItems().addAll(1, 2);
-            divisionsBox.setValue(1);
+            divisionsBox.getItems().addAll(2, 4);
+            divisionsBox.setValue(2);
         }
         System.out.println("END");
     }
