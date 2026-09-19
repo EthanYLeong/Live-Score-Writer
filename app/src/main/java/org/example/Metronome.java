@@ -51,7 +51,6 @@ public class Metronome {
             System.out.println("ERROR: COULD NOT CREATE CLIPS FOR METRONOME CLICK");
             e.printStackTrace();
         }
-        System.out.println("CONSTRUCTOR");
         // // offset in order to match the sound of the actual click to the
         // // beginning of the read method in audiotranscriber
     }

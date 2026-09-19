@@ -103,7 +103,6 @@ public class JavaFX extends Application {
 
         webEngine.getLoadWorker().stateProperty().addListener((observable, oldState, newState) -> {
             if (newState == Worker.State.SUCCEEDED) {
-                System.out.println("page open");
                 String initialMusicXML = audioTranscriber.getInitialXMLString();
                 loadMusicXmlFile(initialMusicXML);
             }
@@ -122,8 +121,8 @@ public class JavaFX extends Application {
     }
 
     private void handleStartTrigger() {
-        System.out.println("AUDIO TRANSCRIBER INTERVAL :" + audioTranscriber.interval);
-        System.out.println("METRONOME INTERVAL: " + metronome.interval);
+        // System.out.println("AUDIO TRANSCRIBER INTERVAL :" + audioTranscriber.interval);
+        // System.out.println("METRONOME INTERVAL: " + metronome.interval);
         if (!audioTranscriber.line.isActive()) {
             metronome.start();
             audioTranscriber.start();
@@ -137,7 +136,6 @@ public class JavaFX extends Application {
     }
 
     private void updateDivisionsField() {
-        System.out.println("START");
         if (AudioTranscriberYIN.timeSignatureDenominator.equals("4")) {
             divisionsBox.getItems().clear();
             divisionsBox.getItems().addAll(1, 2, 4);
@@ -147,7 +145,6 @@ public class JavaFX extends Application {
             divisionsBox.getItems().addAll(2, 4);
             divisionsBox.setValue(2);
         }
-        System.out.println("END");
     }
 
 }

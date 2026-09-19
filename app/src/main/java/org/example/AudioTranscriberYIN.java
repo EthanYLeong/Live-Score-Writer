@@ -24,6 +24,7 @@ import org.audiveris.proxymusic.ScorePart;
 import org.audiveris.proxymusic.ScorePartwise;
 import org.audiveris.proxymusic.Step;
 import org.audiveris.proxymusic.Time;
+import org.audiveris.proxymusic.Work;
 
 import be.tarsos.dsp.pitch.Yin;
 import jakarta.xml.bind.JAXBContext;
@@ -431,6 +432,10 @@ public class AudioTranscriberYIN {
         clef.setSign(ClefSign.G);
         clef.setLine(new BigInteger("2"));
 
+        Work work = new Work();
+        work.setWorkTitle("Live Score Writer");
+        scorePartwise.setWork(work);
+
         scorePartwise.getPart().add(part);
         part.setId(scorePart);
         try {
@@ -490,5 +495,4 @@ public class AudioTranscriberYIN {
     public void stop() {
         isTranscriberActive = false;
     }
-
 }
