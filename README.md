@@ -9,7 +9,7 @@ Live Score Writer captures audio from a microphone and processes it in real time
 ### Usage
 
 Once you run the code, you will see this application below.
-![image.png](jb-image:img_1789766218976_909b36840f4848)
+![alt text](image.png)
 At the top of the application, you can configure the BPM, time signature, and subdivision. The subdivision is determined by the selected divisions value, which represents the number of subdivisions per quarter note. For example, the default divisions value of 4 means that each quarter note is divided into four subdivisions, resulting in 16th-note subdivisions.
 
 The subdivision is always calculated relative to the quarter note, regardless of the selected time signature. For example, with a 6/8 time signature and a divisions value of 4, the subdivision remains 16th notes because there are four divisions per quarter note.
